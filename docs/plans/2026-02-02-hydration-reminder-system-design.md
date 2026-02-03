@@ -2,30 +2,21 @@
 
 ## Overview
 
-A hydration reminder system for a child that monitors a WaterH Bluetooth water bottle and provides alerts via a desk-mounted ESP32 device with LCD display. Version 2 adds Apple Watch support.
+A hydration reminder system for a child that monitors a WaterH Bluetooth water bottle and provides alerts. The system has two implementation paths:
+
+1. **Chapter 1: iOS + watchOS App** - iPhone handles BLE polling, syncs state to Apple Watch. Faster iteration, validates BLE parsing, enables wearable alerts.
+
+2. **Chapter 2: ESP32 Desk Display** - Standalone desk-mounted device with LCD. No phone dependency, always-visible display, physical alerts.
+
+Both approaches can coexist - the ESP32 could receive state from the iPhone rather than connecting to the bottle directly.
 
 ## Goals
 
-- Remind child to drink water at regular intervals
-- Detect when child drinks (via water bottle sensors)
+- Remind child to drink water based on daily goal spread across waking hours
+- Detect drinks via water bottle BLE sensors
 - Reset reminder timer when drink is detected
-- Display progress and encouragement on desk device
-- No phone dependency for core functionality
-
-## Hardware
-
-### Version 1 (MVP)
-- **WaterH Bluetooth water bottle** - Existing device
-- **ideaspark ESP32 + 1.9" LCD (170x320)** - Desk display unit, 16MB flash, CH340 USB
-- **Passive buzzer** - Audio alerts (external, wired to GPIO + GND)
-- **Temperature sensor (DHT22 or BME280)** - Adjust reminder frequency based on ambient temperature
-- **PIR motion sensor** - Detect child stillness, encourage movement breaks
-- **LDR (Light Dependent Resistor)** - Gesture input: cover device with hand to dismiss/snooze alerts
-
-### Version 2
-- All of the above, plus:
-- **Apple Watch** - Wearable alerts when away from desk
-- **Mi Band 6** (alternative) - Cheaper wearable option with Gadgetbridge support
+- Display progress with halo ring UI (inspired by bottle's LED)
+- Notifications on iPhone and Apple Watch
 
 ---
 
@@ -129,7 +120,7 @@ bool isDrinkEvent(DrinkEvent* event) {
 }
 ```
 
-### Parsing Example (Swift for Apple Watch)
+### Parsing Example (Swift for iOS/watchOS)
 
 ```swift
 struct DrinkEvent {
@@ -168,7 +159,7 @@ struct DrinkEvent {
 
 ### Connection Notes
 
-1. **Single connection only** - The bottle supports one BLE connection at a time. If the WaterH app is connected, ESP32 cannot connect.
+1. **Single connection only** - The bottle supports one BLE connection at a time. If the WaterH app is connected, other devices cannot connect.
 
 2. **Advertising interval** - The bottle advertises infrequently to save battery. May take several seconds to appear in scans.
 
@@ -198,7 +189,152 @@ Decoded: Feb 2nd, 22:21:15, **16ml** ✓ (verified against WaterH app)
 
 ---
 
-## Part 2: ESP32 Firmware Architecture
+## Part 2: iOS + watchOS App (Chapter 1)
+
+### Concept
+
+An iOS app that polls the WaterH bottle via BLE and syncs hydration state to Apple Watch. Uses brief polling connections so the WaterH app can still be used.
+
+### Key Design Decisions
+
+- **Background polling** - App connects briefly to grab drink data, then disconnects. Coexists with WaterH app.
+- **Goal-based reminders** - User sets daily goal (e.g., 8 glasses), app calculates intervals to spread drinks across waking hours.
+- **Halo ring UI** - Inspired by bottle's rainbow LED. Ring fills with progress, pulses rainbow when it's time to drink.
+- **Watch-first design** - UI designed to fit Apple Watch, then expanded for iPhone.
+- **Fixed schedule** - User sets wake/sleep times in settings (e.g., 7am-9pm).
+- **Adaptive polling** - More frequent polling when timer is running low.
+
+### System Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                      iOS App                             │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
+│  │ BLE Manager  │  │ Hydration    │  │ Notification │   │
+│  │              │  │ Tracker      │  │ Manager      │   │
+│  │ - Scan/connect│ │              │  │              │   │
+│  │ - Poll bottle │→│ - Daily goal │→│ - Schedule   │   │
+│  │ - Parse drinks│ │ - Timer calc │  │ - iPhone/Watch│  │
+│  │ - Disconnect │  │ - History    │  │ - Halo state │   │
+│  └──────────────┘  └──────────────┘  └──────────────┘   │
+│                            ↓                             │
+│                    ┌──────────────┐                      │
+│                    │ WatchConnect │                      │
+│                    │ - Sync state │                      │
+│                    │ - Push updates│                     │
+│                    └──────────────┘                      │
+└─────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────┐
+│                    watchOS App                           │
+├─────────────────────────────────────────────────────────┤
+│  - Receives state from iPhone via WatchConnectivity     │
+│  - Displays halo ring, progress, countdown              │
+│  - Shows notifications with haptics                     │
+│  - Complication for watch face                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Data flow:**
+1. iPhone does all BLE work (Watch BLE in background is unreliable)
+2. iPhone calculates timer state and syncs to Watch
+3. Both devices can fire notifications, but iPhone is source of truth
+
+### Adaptive Polling Schedule
+
+| Timer State | Poll Interval |
+|-------------|---------------|
+| >10 min remaining | Every 10 minutes |
+| 5-10 min remaining | Every 5 minutes |
+| <5 min remaining | Every 2 minutes |
+| Alert firing | Every 1 minute (to detect drink and stop alert) |
+
+**Connection sequence (each poll):**
+1. Scan for bottle (timeout 10s)
+2. Connect
+3. Write `01` to command characteristic
+4. Read drink history from response
+5. Disconnect immediately
+6. Parse new drinks, update tracker
+
+### iPhone UI
+
+**Main Screen:**
+```
+┌─────────────────────────────┐
+│  ╭─────────────────────╮    │
+│  │                     │    │
+│  │      ◐ 6/8         │    │  ← Large halo ring
+│  │       💧            │    │     (fills as progress)
+│  │                     │    │
+│  ╰─────────────────────╯    │
+│                             │
+│        18:32                │  ← Countdown timer
+│     until next drink        │
+│                             │
+├─────────────────────────────┤
+│  Today                      │
+│  ├ 3:42pm   120ml          │  ← Drink history
+│  ├ 1:15pm    85ml          │
+│  ├ 11:30am  200ml          │
+│  └ 9:02am   150ml          │
+│                             │
+│            ⚙️               │  ← Settings
+└─────────────────────────────┘
+```
+
+**Settings Screen:**
+- Daily goal (glasses or ml)
+- Wake time / Sleep time
+- Notification sound on/off
+- Bottle connection status
+
+**Alert State:** Halo pulses rainbow, background shifts color, notification fires.
+
+### Watch UI
+
+**Main View:**
+```
+┌─────────────────────┐
+│ ╭─────────────────╮ │
+│ │                 │ │
+│ │     6/8 💧      │ │  ← Glass count
+│ │                 │ │
+│ │     18:32       │ │  ← Countdown
+│ │                 │ │
+│ ╰─────────────────╯ │
+│ ═══════════════╗    │  ← Halo ring (75%)
+└─────────────────────┘
+```
+
+**Alert State:** Halo animates rainbow pulse, haptic tap pattern fires.
+
+**Complication (circular):** Mini halo ring with count (e.g., "6/8") - glanceable from any watch face.
+
+### Halo Ring Design
+
+Inspired by the WaterH bottle's rainbow LED halo:
+- Shows progress (fills up as you drink toward goal)
+- Pulses/animates rainbow when it's time to drink
+- Subtle color shifts based on status:
+  - Blue/green = on track
+  - Orange = timer running low
+  - Rainbow pulse = time to drink!
+
+---
+
+## Part 3: ESP32 Desk Display (Chapter 2)
+
+### Hardware
+
+- **WaterH Bluetooth water bottle** - Existing device
+- **ideaspark ESP32 + 1.9" LCD (170x320)** - Desk display unit, 16MB flash, CH340 USB
+- **Passive buzzer** - Audio alerts (external, wired to GPIO + GND)
+- **Temperature sensor (DHT22 or BME280)** - Adjust reminder frequency based on ambient temperature
+- **PIR motion sensor** - Detect child stillness, encourage movement breaks
+- **LDR (Light Dependent Resistor)** - Gesture input: cover device with hand to dismiss/snooze alerts
 
 ### Platform
 
@@ -320,7 +456,7 @@ struct Config {
 
 ---
 
-## Part 3: Display UI/UX
+## Part 4: ESP32 Display UI/UX
 
 ### Design Principles
 
@@ -412,7 +548,7 @@ struct Config {
 
 ---
 
-## Part 4: Alert System
+## Part 5: ESP32 Alert System
 
 ### Alert Escalation Sequence
 
@@ -503,11 +639,9 @@ if (isDeviceCovered()) {
 
 ---
 
-## Part 5: Version 2 - Apple Watch Integration
+## Part 6: Future Integration Options
 
-### Option Analysis
-
-#### Option A: Apple Watch Direct to Bottle (Preferred if possible)
+### Option A: Apple Watch Direct to Bottle
 
 ```
 ┌─────────────────┐         BLE          ┌─────────────────┐
@@ -515,19 +649,19 @@ if (isDeviceCovered()) {
 └─────────────────┘                      └─────────────────┘
 ```
 
-**Pros:**
-- Simplest architecture
-- No ESP32 needed for Watch users
-- Works anywhere (not just at desk)
+**Feasibility:** Medium. watchOS BLE in background is unreliable. Not recommended.
 
-**Cons:**
-- watchOS BLE has limitations (background time, connection limits)
-- May not work if iPhone WaterH app is also connected (BLE single connection issue)
-- Need to reverse-engineer protocol again in Swift
+### Option B: iPhone → Apple Watch (CURRENT APPROACH)
 
-**Feasibility:** Medium. Worth attempting. watchOS 9+ improved background BLE.
+```
+┌─────────────┐  BLE  ┌─────────────┐  WatchConnect  ┌─────────────┐
+│   Bottle    │──────▶│   iPhone    │───────────────▶│ Apple Watch │
+└─────────────┘       └─────────────┘                └─────────────┘
+```
 
-#### Option B: ESP32 → WiFi → iPhone → Apple Watch
+**Feasibility:** High. This is Chapter 1.
+
+### Option C: ESP32 → iPhone → Apple Watch
 
 ```
 ┌─────────────┐  BLE  ┌─────────────┐  WiFi  ┌─────────────┐  Watch  ┌─────────────┐
@@ -535,141 +669,22 @@ if (isDeviceCovered()) {
 └─────────────┘       └─────────────┘        └─────────────┘         └─────────────┘
 ```
 
-**Pros:**
-- ESP32 does the hard BLE work
-- iPhone app relays status to Watch via WatchConnectivity
-- Most reliable for Watch updates
+**Feasibility:** High. ESP32 could push to iPhone app, which relays to Watch. ESP32 maintains always-on desk display.
 
-**Cons:**
-- Requires iPhone in the loop
-- More components, more failure points
-
-**Feasibility:** High. Well-documented approach.
-
-#### Option C: ESP32 → Web Service → Apple Watch
-
-```
-┌─────────────┐  BLE  ┌─────────────┐  WiFi  ┌─────────────┐  HTTPS  ┌─────────────┐
-│   Bottle    │──────▶│    ESP32    │───────▶│ Web Server  │◀────────│ Apple Watch │
-└─────────────┘       └─────────────┘        │ (Cloud/Local)│        └─────────────┘
-                                             └─────────────┘
-```
-
-**Pros:**
-- Watch can work independently of iPhone (cellular Watch)
-- Could add web dashboard, multiple users
-
-**Cons:**
-- Requires running a server (or cloud service)
-- Latency for alerts
-- Internet dependency
-
-**Feasibility:** High, but overkill for single-user home use.
-
-#### Option D: ESP32 → Local WiFi → Apple Watch (Direct)
+### Option D: ESP32 as Display-Only (receives from iPhone)
 
 ```
 ┌─────────────┐  BLE  ┌─────────────┐  WiFi  ┌─────────────┐
-│   Bottle    │──────▶│    ESP32    │◀──────▶│ Apple Watch │
-└─────────────┘       └─────────────┘        └─────────────┘
+│   Bottle    │──────▶│   iPhone    │───────▶│    ESP32    │
+└─────────────┘       └─────────────┘        │ (display)   │
+                             │               └─────────────┘
+                             ▼
+                      ┌─────────────┐
+                      │ Apple Watch │
+                      └─────────────┘
 ```
 
-**Pros:**
-- No iPhone needed
-- No cloud needed
-- Low latency
-
-**Cons:**
-- Apple Watch WiFi is limited (needs known network)
-- Watch apps can't easily poll HTTP in background
-- Complications can refresh but infrequently
-
-**Feasibility:** Low. watchOS restricts background networking.
-
-### Recommended Approach for V2
-
-**Try Option A first** (Watch direct to bottle), with **Option B as fallback**.
-
-#### Implementation Plan:
-
-**Step 1: Test watchOS BLE capability**
-- Build minimal watchOS app that scans for bottle
-- Verify it can connect and receive notifications
-- Test background behavior (does it maintain connection?)
-
-**Step 2a: If Watch BLE works well**
-- Port ESP32 BLE parsing logic to Swift
-- Build standalone Watch app
-- ESP32 becomes optional "desk display" accessory
-
-**Step 2b: If Watch BLE is unreliable**
-- Implement Option B
-- ESP32 remains the brain
-- iPhone app bridges to Watch via WatchConnectivity
-- Watch app shows complications + alerts
-
-### Apple Watch App Architecture (Option A or B)
-
-#### Watch App Components
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                   watchOS App                               │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
-│  │ BLE Manager │    │ Timer Engine│    │Complication │     │
-│  │ (Option A)  │    │             │    │   Provider  │     │
-│  │             │───▶│ - Countdown │───▶│             │     │
-│  │ OR          │    │ - Alerts    │    │ - Progress  │     │
-│  │             │    │             │    │ - Timer     │     │
-│  │ WatchConnect│    │             │    │             │     │
-│  │ (Option B)  │    │             │    │             │     │
-│  └─────────────┘    └─────────────┘    └─────────────┘     │
-│                            │                                │
-│                            ▼                                │
-│                     ┌─────────────┐                        │
-│                     │ Haptic/Sound│                        │
-│                     │   Alerts    │                        │
-│                     └─────────────┘                        │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-#### Watch UI Screens
-
-**Main Screen:**
-```
-┌─────────────────┐
-│    23:45        │  ← Countdown
-│   until drink   │
-│                 │
-│  [██████░░] 6/8 │  ← Progress
-│                 │
-│ [Drink Now btn] │  ← Manual log
-└─────────────────┘
-```
-
-**Complication (Circular):**
-```
-    ┌───┐
-   ╱  6  ╲    ← Glasses today
-  │  /8   │   ← Goal
-   ╲ 💧 ╱    ← Water icon
-    └───┘
-```
-
-**Alert Notification:**
-```
-┌─────────────────┐
-│ 💧 Time to      │
-│    Drink!       │
-│                 │
-│ [Snooze] [Done] │
-└─────────────────┘
-```
-- Haptic tap pattern
-- Optional sound
+**Feasibility:** High. iPhone becomes the brain, ESP32 just displays. Avoids BLE connection conflicts entirely.
 
 ---
 
@@ -683,9 +698,25 @@ if (isDeviceCovered()) {
 - [x] Verify decoded data against WaterH app (16ml reading confirmed)
 - [ ] Document remaining unknown fields (flags/checksum bytes 9-13)
 
-### Phase 2: ESP32 MVP (2-3 weeks development)
+### Phase 2: iOS + watchOS App (Chapter 1) ← CURRENT
+- [ ] Add watchOS target to Xcode project
+- [ ] Implement BLE Manager (scan, connect, poll, disconnect)
+- [ ] Implement Hydration Tracker (goal, timer calculation, history)
+- [ ] Build iPhone UI (halo ring, countdown, history list, settings)
+- [ ] Build Watch UI (halo ring, countdown, complication)
+- [ ] Implement WatchConnectivity sync
+- [ ] Add local notifications (iPhone + Watch)
+- [ ] Test adaptive polling behavior
+
+### Phase 3: Testing & Refinement
+- [ ] Test with actual child user
+- [ ] Tune reminder intervals
+- [ ] Adjust UI for engagement
+- [ ] Handle edge cases (bottle out of range, app backgrounded, etc.)
+
+### Phase 4: ESP32 Desk Display (Chapter 2)
 - [ ] Set up ESP32 development environment (Arduino + PlatformIO)
-- [ ] Implement BLE connection to bottle
+- [ ] Implement BLE connection to bottle (or receive from iPhone)
 - [ ] Parse drink events from BLE notifications
 - [ ] Implement timer engine with persistence
 - [ ] Build LCD UI (countdown, progress, alerts)
@@ -693,37 +724,22 @@ if (isDeviceCovered()) {
 - [ ] Add WiFi setup portal (WiFiManager)
 - [ ] Implement REST API for status
 
-### Phase 3: Testing & Refinement
-- [ ] Test with actual child user
-- [ ] Tune alert escalation timing
-- [ ] Adjust UI for readability/engagement
-- [ ] Handle edge cases (bottle out of range, power loss, etc.)
-
-### Phase 4: Apple Watch App (Option A attempt)
-- [ ] Create watchOS app project
-- [ ] Test BLE connection to bottle from Watch
-- [ ] Evaluate background reliability
-- [ ] If successful: port BLE parsing, build Watch UI
-- [ ] If unsuccessful: proceed to Phase 5
-
-### Phase 5: Apple Watch via iPhone Bridge (Option B fallback)
-- [ ] Create iOS companion app
-- [ ] Implement WatchConnectivity bridge
-- [ ] ESP32 pushes events to iPhone via REST/WebSocket
-- [ ] iPhone relays to Watch
-- [ ] Build Watch complications and alerts
+### Phase 5: Integration
+- [ ] Connect ESP32 to iPhone app (push/pull state)
+- [ ] Unified experience across all devices
+- [ ] Handle failover gracefully
 
 ---
 
 ## Open Questions
 
-1. ~~**Bottle BLE behavior:**~~ **ANSWERED** - Single connection only. ESP32 and WaterH app cannot connect simultaneously.
+1. ~~**Bottle BLE behavior:**~~ **ANSWERED** - Single connection only. Apps cannot connect simultaneously.
 
 2. **Drink detection accuracy:** How does the bottle detect drinks? Tilt sensor? Flow sensor? Weight? (Works reliably in testing, exact mechanism unknown)
 
 3. **Power considerations:** Does the ESP32 need a physical on/off switch, or is always-on acceptable?
 
-4. **Alert preferences:** What times should alerts be suppressed? (School hours? Nighttime?)
+4. **Alert preferences:** What times should alerts be suppressed? (School hours? Nighttime?) → User sets wake/sleep times in settings.
 
 5. **Multi-child support:** Is this for one child, or should the system support multiple bottles/children?
 
@@ -735,17 +751,21 @@ if (isDeviceCovered()) {
 
 ## Success Criteria
 
-### MVP (Phase 2 complete)
-- ESP32 successfully connects to water bottle
+### Chapter 1 Complete (iOS + watchOS)
+- iPhone successfully polls water bottle via BLE
 - Drink events are detected and logged
 - Timer resets when drink is detected
-- Visual countdown displays on LCD
-- Audible alert sounds when timer expires
+- Halo ring shows progress toward daily goal
+- Notifications fire on iPhone and Watch when timer expires
+- Watch complication shows current progress
+- System coexists with WaterH app (polling, not persistent connection)
+
+### Chapter 2 Complete (ESP32 Desk Display)
+- ESP32 displays hydration status on LCD
+- Audible/visual alerts when timer expires
+- Receives state from iPhone OR connects to bottle directly
 - Device survives 7 days of continuous use
 
-### Full System (Phase 4 or 5 complete)
-- All MVP criteria, plus:
-- Apple Watch shows hydration status
-- Watch alerts when timer expires
-- Watch complications show progress
-- System works reliably for 30 days
+### Full System
+- All devices show consistent state
+- Reliable for 30 days of daily use
