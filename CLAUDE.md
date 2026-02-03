@@ -1,5 +1,11 @@
 # Smart Water Bottle Companion
 
+## Workflow
+
+- **Use feature branches** for new work, not direct commits to main
+- **Create PRs** to get GitHub Copilot reviews before merging
+- Branch naming: `feature/<description>` or `task/<task-number>-<description>`
+
 ## Project Overview
 
 A hydration reminder system for a child that monitors a WaterH Bluetooth water bottle. Two implementation chapters:
