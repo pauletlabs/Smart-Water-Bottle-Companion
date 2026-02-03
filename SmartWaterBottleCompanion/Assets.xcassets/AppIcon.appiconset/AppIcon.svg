@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Turquoise background -->
+  <rect width="1024" height="1024" fill="#1ABC9C"/>
+  
+  <!-- Light Bulb (Left side) -->
+  <g transform="translate(340, 380)">
+    <!-- Bulb glass -->
+    <circle cx="0" cy="0" r="90" fill="none" stroke="white" stroke-width="24"/>
+    
+    <!-- Filament -->
+    <path d="M -30 -70 Q -50 -100 0 -110 Q 50 -100 30 -70" fill="none" stroke="white" stroke-width="20" stroke-linecap="round"/>
+    
+    <!-- Base/socket -->
+    <rect x="-45" y="90" width="90" height="80" fill="none" stroke="white" stroke-width="24" rx="10"/>
+    
+    <!-- Socket threads -->
+    <line x1="-35" y1="115" x2="35" y2="115" stroke="white" stroke-width="20" stroke-linecap="round"/>
+    <line x1="-35" y1="150" x2="35" y2="150" stroke="white" stroke-width="20" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Thermometer (Right side) -->
+  <g transform="translate(684, 380)">
+    <!-- Tube -->
+    <path d="M -35 -150 L -35 80 Q -35 120 0 120 Q 35 120 35 80 L 35 -150" fill="none" stroke="white" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Bulb at bottom -->
+    <circle cx="0" cy="160" r="70" fill="none" stroke="white" stroke-width="24"/>
+    
+    <!-- Temperature marks -->
+    <line x1="55" y1="-120" x2="95" y2="-120" stroke="white" stroke-width="18" stroke-linecap="round"/>
+    <line x1="65" y1="-80" x2="90" y2="-80" stroke="white" stroke-width="18" stroke-linecap="round"/>
+    <line x1="55" y1="-40" x2="95" y2="-40" stroke="white" stroke-width="18" stroke-linecap="round"/>
+    <line x1="65" y1="0" x2="90" y2="0" stroke="white" stroke-width="18" stroke-linecap="round"/>
+    <line x1="55" y1="40" x2="95" y2="40" stroke="white" stroke-width="18" stroke-linecap="round"/>
+  </g>
+</svg>
