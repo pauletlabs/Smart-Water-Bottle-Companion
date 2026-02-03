@@ -48,14 +48,18 @@ Bytes 8-12: Flags/checksum (TBD)
 ### Phase 1: BLE Reverse Engineering - COMPLETE
 ### Phase 2: iOS + watchOS App - CURRENT
 
-Tasks:
-- [ ] Add watchOS target to Xcode project
-- [ ] Implement BLE Manager (scan, connect, poll, disconnect)
-- [ ] Implement Hydration Tracker (goal, timer calculation, history)
-- [ ] Build iPhone UI (halo ring, countdown, history list, settings)
-- [ ] Build Watch UI (halo ring, countdown, complication)
-- [ ] Implement WatchConnectivity sync
-- [ ] Add local notifications (iPhone + Watch)
+**Implementation plan:** `docs/plans/2026-02-03-ios-watchos-app-implementation.md`
+
+**Progress (paused at Task 1):**
+- [x] Task 1: DrinkEvent model (created, tests written, needs test run)
+- [ ] Task 2: HydrationState model
+- [ ] Task 3: BLE Manager
+- [ ] Task 4: HydrationTracker (checkpoint)
+- [ ] Task 5-7: iPhone UI
+- [ ] Task 8: Bluetooth permissions
+- [ ] Task 9: watchOS target (manual Xcode step)
+- [ ] Task 10-13: Watch app + notifications
+- [ ] Task 14: Final integration
 
 ### Phase 3: Testing & Refinement
 ### Phase 4: ESP32 Desk Display (Chapter 2)
