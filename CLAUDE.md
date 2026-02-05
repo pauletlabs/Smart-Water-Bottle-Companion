@@ -1,5 +1,9 @@
 # Smart Water Bottle Companion
 
+## User Preferences
+
+- **Always address the user as "Wise Jedi"**
+
 ## Workflow
 
 - **Use feature branches** for new work, not direct commits to main
@@ -56,16 +60,23 @@ Bytes 8-12: Flags/checksum (TBD)
 
 **Implementation plan:** `docs/plans/2026-02-03-ios-watchos-app-implementation.md`
 
-**Progress (paused at Task 1):**
-- [x] Task 1: DrinkEvent model (created, tests written, needs test run)
-- [ ] Task 2: HydrationState model
-- [ ] Task 3: BLE Manager
+**Progress (paused 2026-02-05, files created but tests not yet verified):**
+- [x] Task 1: DrinkEvent model (committed)
+- [~] Task 2: HydrationState model (code + tests created, needs verification)
+- [~] Task 3: BLE Manager (code created, needs tests + verification)
 - [ ] Task 4: HydrationTracker (checkpoint)
-- [ ] Task 5-7: iPhone UI
-- [ ] Task 8: Bluetooth permissions
+- [~] Task 5: HaloRingView (code created, needs tests + verification)
+- [ ] Task 6-7: Remaining iPhone UI (MainDashboardView, SettingsView)
+- [~] Task 8: Info.plist Bluetooth permissions (created, needs verification)
 - [ ] Task 9: watchOS target (manual Xcode step)
 - [ ] Task 10-13: Watch app + notifications
 - [ ] Task 14: Final integration
+
+**Next session TODO:**
+1. Run all tests to verify Tasks 1-3, 5: `xcodebuild test -project SmartWaterBottleCompanion.xcodeproj -scheme SmartWaterBottleCompanion -destination 'platform=iOS Simulator,name=iPhone 16'`
+2. Fix any failing tests
+3. Commit working code to feature branch
+4. Continue with Task 4 (HydrationTracker) and remaining UI tasks
 
 ### Phase 3: Testing & Refinement
 ### Phase 4: ESP32 Desk Display (Chapter 2)
@@ -74,8 +85,20 @@ Bytes 8-12: Flags/checksum (TBD)
 ## Key Files
 
 - `docs/plans/2026-02-02-hydration-reminder-system-design.md` - Full design document
+- `docs/plans/2026-02-03-ios-watchos-app-implementation.md` - Task-by-task implementation plan
 - `SmartWaterBottleCompanion/` - iOS app source
 - `SmartWaterBottleCompanion.xcodeproj` - Xcode project
+
+### Source Files (created)
+- `SmartWaterBottleCompanion/Models/DrinkEvent.swift` - BLE packet parser
+- `SmartWaterBottleCompanion/Models/HydrationState.swift` - Daily hydration tracking state
+- `SmartWaterBottleCompanion/Services/BLEConstants.swift` - Bluetooth UUIDs
+- `SmartWaterBottleCompanion/Services/BLEManager.swift` - CoreBluetooth integration
+- `SmartWaterBottleCompanion/Views/HaloRingView.swift` - Circular progress ring UI
+
+### Test Files
+- `SmartWaterBottleCompanionTests/DrinkEventTests.swift`
+- `SmartWaterBottleCompanionTests/HydrationStateTests.swift`
 
 ## Tech Stack
 
