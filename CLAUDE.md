@@ -60,7 +60,7 @@ Bytes 8-12: Flags/checksum (TBD)
 
 **Implementation plan:** `docs/plans/2026-02-03-ios-watchos-app-implementation.md`
 
-**Progress (updated 2026-02-06):**
+**Progress (updated 2026-02-06 evening):**
 - [x] Task 1: DrinkEvent model (committed, tests pass)
 - [x] Task 2: HydrationState model (committed, tests pass)
 - [x] Task 3: BLE Manager (committed)
@@ -69,28 +69,33 @@ Bytes 8-12: Flags/checksum (TBD)
 - [x] Task 6: ContentView - full UI (committed)
 - [x] Task 7: SettingsView (committed)
 - [x] Task 8: Info.plist removed (using Xcode build settings)
+- [x] BLE Simulator for testing (committed)
+- [x] Demo mode with 10s countdown + 60s alert (committed)
+- [x] Rainbow border glow + alert banner UI (committed)
 - [ ] Task 9: watchOS target (manual Xcode step)
 - [ ] Task 10-13: Watch app + notifications
 - [ ] Task 14: Final integration
 
 **Branch:** `feature/ios-app-core-implementation` (PR #1 open)
 
-**Current TODO:**
-1. BLE Simulator for end-to-end testing without physical bottle
+**Current TODO (next session):**
+1. Test demo countdown fix - user reported timer getting stuck, refactored to DemoCountdownManager
 2. Fix HydrationTrackerTests Swift 6 concurrency issue
 3. watchOS target and app
 4. Notifications
 
-### Phase 2.5: BLE Simulator - IN PROGRESS
+### Phase 2.5: BLE Simulator - COMPLETE
 
 **Goal:** Enable end-to-end testing of the app without the physical water bottle.
 
 **Components:**
-- `MockBLEManager` - Implements same interface as BLEManager but generates fake drink events
-- `SimulatorControlView` - Debug UI to trigger simulated drinks
-- Compiler flag to swap real/mock BLE in Debug builds
+- `MockBLEManager` - Simulates drink events for testing
+- Simulator controls in toolbar (ant icon 🐜) - Add 200ml, Add 150ml, 10s Demo, Clear All
+- `DemoCountdownManager` - Manages 10s countdown + 60s alert phase independently of view lifecycle
+- `RainbowBorderView` - Siri-style animated border glow when alerting (20px)
+- `AlertBannerView` - "Time to Drink!" banner with bouncing drop and pulsing bell
 
-**Usage:** In simulator or when bottle unavailable, tap "Simulate Drink" to test the full flow.
+**Usage:** In simulator, tap the ant icon (🐜) menu to add drinks or trigger the demo.
 
 ### Phase 3: Testing & Refinement
 ### Phase 4: ESP32 Desk Display (Chapter 2)
@@ -108,11 +113,20 @@ Bytes 8-12: Flags/checksum (TBD)
 - `SmartWaterBottleCompanion/Models/HydrationState.swift` - Daily hydration tracking state
 - `SmartWaterBottleCompanion/Services/BLEConstants.swift` - Bluetooth UUIDs
 - `SmartWaterBottleCompanion/Services/BLEManager.swift` - CoreBluetooth integration
+- `SmartWaterBottleCompanion/Services/MockBLEManager.swift` - Mock BLE for simulator testing
+- `SmartWaterBottleCompanion/ViewModels/HydrationTracker.swift` - Main state coordinator
+- `SmartWaterBottleCompanion/ViewModels/DemoCountdownManager.swift` - Demo mode timer logic
 - `SmartWaterBottleCompanion/Views/HaloRingView.swift` - Circular progress ring UI
+- `SmartWaterBottleCompanion/Views/RainbowBorderView.swift` - Animated glow border
+- `SmartWaterBottleCompanion/Views/AlertBannerView.swift` - "Time to Drink!" banner
+- `SmartWaterBottleCompanion/Views/SettingsView.swift` - Settings screen
+- `SmartWaterBottleCompanion/ContentView.swift` - Main app UI
 
 ### Test Files
 - `SmartWaterBottleCompanionTests/DrinkEventTests.swift`
 - `SmartWaterBottleCompanionTests/HydrationStateTests.swift`
+- `SmartWaterBottleCompanionTests/DemoCountdownTests.swift` - Demo logic tests (all pass)
+- `SmartWaterBottleCompanionTests/DemoCountdownManagerTests.swift` - Manager tests
 
 ## Tech Stack
 
