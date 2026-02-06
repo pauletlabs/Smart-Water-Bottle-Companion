@@ -6,6 +6,8 @@ struct HydrationState {
     let mlPerGlass: Int
     var wakeTime: DateComponents = DateComponents(hour: 7, minute: 0)
     var sleepTime: DateComponents = DateComponents(hour: 21, minute: 0)
+    var drinkHistory: [DrinkEvent] = []
+    var lastDrinkTime: Date?
 
     init(dailyGoalMl: Int, mlPerGlass: Int = 200) {
         self.dailyGoalMl = dailyGoalMl

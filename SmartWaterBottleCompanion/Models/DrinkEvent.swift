@@ -22,6 +22,17 @@ struct DrinkEvent: Identifiable, Codable, Equatable {
         self.amountMl = data[7]
     }
 
+    /// Creates a DrinkEvent with explicit values (for testing and manual creation)
+    init(id: UUID = UUID(), month: UInt8, day: UInt8, hour: UInt8, minute: UInt8, second: UInt8, amountMl: UInt8) {
+        self.id = id
+        self.month = month
+        self.day = day
+        self.hour = hour
+        self.minute = minute
+        self.second = second
+        self.amountMl = amountMl
+    }
+
     var timestamp: Date? {
         var components = DateComponents()
         components.month = Int(month)
