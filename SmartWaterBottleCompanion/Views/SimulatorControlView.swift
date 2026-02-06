@@ -5,21 +5,28 @@ import SwiftUI
 struct SimulatorControlView: View {
     @ObservedObject var mockManager: MockBLEManager
     let onDrinkSimulated: () -> Void
+    let onDemoCountdown: () -> Void
 
     @State private var selectedAmount: Double = 200
 
     var body: some View {
         VStack(spacing: 12) {
-            // Header
+            // Header with demo button
             HStack {
                 Image(systemName: "ant.circle.fill")
                     .foregroundColor(.orange)
                 Text("BLE Simulator")
                     .font(.headline)
                 Spacer()
-                Text("\(mockManager.simulatedDrinks.count) drinks")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+
+                Button {
+                    onDemoCountdown()
+                } label: {
+                    Label("10s Demo", systemImage: "play.circle.fill")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.green)
             }
 
             Divider()
@@ -116,7 +123,8 @@ struct SimulatorControlView: View {
 #Preview {
     SimulatorControlView(
         mockManager: MockBLEManager(),
-        onDrinkSimulated: {}
+        onDrinkSimulated: {},
+        onDemoCountdown: {}
     )
     .padding()
 }
