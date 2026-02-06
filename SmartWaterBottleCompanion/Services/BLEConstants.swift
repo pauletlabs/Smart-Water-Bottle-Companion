@@ -1,15 +1,22 @@
 import CoreBluetooth
 
 enum BLEConstants {
-    // WaterH bottle uses custom 128-bit UUIDs
-    // These need to be discovered from actual bottle - placeholder format
-    static let bottleServiceUUID = CBUUID(string: "0000FF00-0000-1000-8000-00805F9B34FB")
+    // WaterH-Boost-24oz UUIDs (discovered 2026-02-06)
 
-    // Characteristic #1 - Write commands
-    static let commandCharacteristicUUID = CBUUID(string: "0000FF01-0000-1000-8000-00805F9B34FB")
+    // Service containing the command characteristic (write)
+    static let commandServiceUUID = CBUUID(string: "0000FFE5-0000-1000-8000-00805F9B34FB")
 
-    // Characteristic #2 - Read responses
-    static let responseCharacteristicUUID = CBUUID(string: "0000FF02-0000-1000-8000-00805F9B34FB")
+    // Service containing the response characteristic (read/notify)
+    static let responseServiceUUID = CBUUID(string: "0000FFE0-0000-1000-8000-00805F9B34FB")
+
+    // For scanning - look for either service
+    static let bottleServiceUUID = CBUUID(string: "0000FFE0-0000-1000-8000-00805F9B34FB")
+
+    // Characteristic for writing commands (in FFE5 service)
+    static let commandCharacteristicUUID = CBUUID(string: "0000FFE9-0000-1000-8000-00805F9B34FB")
+
+    // Characteristic for reading responses (in FFE0 service)
+    static let responseCharacteristicUUID = CBUUID(string: "0000FFE4-0000-1000-8000-00805F9B34FB")
 
     // Command to request drink history
     static let requestHistoryCommand = Data([0x01])

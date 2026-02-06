@@ -11,8 +11,10 @@ struct ContentView: View {
     @StateObject private var tracker: HydrationTracker
     @StateObject private var mockBLE: MockBLEManager
     @StateObject private var demoManager = DemoCountdownManager()
+    @StateObject private var bleScanner = BLEManager()  // For discovery scanning
     @State private var showSettings = false
     @State private var showSimulator = false
+    @State private var showBLEDiscovery = false
 
     /// What to show on the countdown display
     private var displayCountdown: String {
@@ -177,15 +179,32 @@ struct ContentView: View {
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "gearshape")
+                    HStack(spacing: 12) {
+                        // BLE Discovery button (device only)
+                        #if !targetEnvironment(simulator)
+                        Button {
+                            showBLEDiscovery = true
+                            bleScanner.discoveryMode = true
+                            bleScanner.startScanning()
+                        } label: {
+                            Image(systemName: "antenna.radiowaves.left.and.right")
+                                .foregroundColor(.blue)
+                        }
+                        #endif
+
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Image(systemName: "gearshape")
+                        }
                     }
                 }
             }
             .sheet(isPresented: $showSettings) {
                 SettingsView(state: $tracker.state)
+            }
+            .sheet(isPresented: $showBLEDiscovery) {
+                BLEDiscoveryView(bleManager: bleScanner)
             }
             .overlay(alignment: .bottom) {
                 // Alert banner as overlay at bottom
