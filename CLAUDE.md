@@ -60,23 +60,37 @@ Bytes 8-12: Flags/checksum (TBD)
 
 **Implementation plan:** `docs/plans/2026-02-03-ios-watchos-app-implementation.md`
 
-**Progress (paused 2026-02-05, files created but tests not yet verified):**
-- [x] Task 1: DrinkEvent model (committed)
-- [~] Task 2: HydrationState model (code + tests created, needs verification)
-- [~] Task 3: BLE Manager (code created, needs tests + verification)
-- [ ] Task 4: HydrationTracker (checkpoint)
-- [~] Task 5: HaloRingView (code created, needs tests + verification)
-- [ ] Task 6-7: Remaining iPhone UI (MainDashboardView, SettingsView)
-- [~] Task 8: Info.plist Bluetooth permissions (created, needs verification)
+**Progress (updated 2026-02-06):**
+- [x] Task 1: DrinkEvent model (committed, tests pass)
+- [x] Task 2: HydrationState model (committed, tests pass)
+- [x] Task 3: BLE Manager (committed)
+- [x] Task 4: HydrationTracker (committed, tests need Swift 6 fix)
+- [x] Task 5: HaloRingView (committed)
+- [x] Task 6: ContentView - full UI (committed)
+- [x] Task 7: SettingsView (committed)
+- [x] Task 8: Info.plist removed (using Xcode build settings)
 - [ ] Task 9: watchOS target (manual Xcode step)
 - [ ] Task 10-13: Watch app + notifications
 - [ ] Task 14: Final integration
 
-**Next session TODO:**
-1. Run all tests to verify Tasks 1-3, 5: `xcodebuild test -project SmartWaterBottleCompanion.xcodeproj -scheme SmartWaterBottleCompanion -destination 'platform=iOS Simulator,name=iPhone 16'`
-2. Fix any failing tests
-3. Commit working code to feature branch
-4. Continue with Task 4 (HydrationTracker) and remaining UI tasks
+**Branch:** `feature/ios-app-core-implementation` (PR #1 open)
+
+**Current TODO:**
+1. BLE Simulator for end-to-end testing without physical bottle
+2. Fix HydrationTrackerTests Swift 6 concurrency issue
+3. watchOS target and app
+4. Notifications
+
+### Phase 2.5: BLE Simulator - IN PROGRESS
+
+**Goal:** Enable end-to-end testing of the app without the physical water bottle.
+
+**Components:**
+- `MockBLEManager` - Implements same interface as BLEManager but generates fake drink events
+- `SimulatorControlView` - Debug UI to trigger simulated drinks
+- Compiler flag to swap real/mock BLE in Debug builds
+
+**Usage:** In simulator or when bottle unavailable, tap "Simulate Drink" to test the full flow.
 
 ### Phase 3: Testing & Refinement
 ### Phase 4: ESP32 Desk Display (Chapter 2)
