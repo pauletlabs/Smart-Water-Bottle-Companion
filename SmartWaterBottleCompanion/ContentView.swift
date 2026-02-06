@@ -9,15 +9,43 @@ import SwiftUI
 import Combine
 
 struct ContentView: View {
-    @StateObject private var tracker = HydrationTracker(dailyGoalMl: 1600)
+    @StateObject private var tracker: HydrationTracker
+    @StateObject private var mockBLE: MockBLEManager
     @State private var showSettings = false
     @State private var countdown: TimeInterval = 0
+    @State private var showSimulator = false
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    /// Use simulator mode when running on iOS Simulator or when explicitly enabled
+    private let isSimulatorMode: Bool
+
+    init() {
+        let mock = MockBLEManager()
+        _mockBLE = StateObject(wrappedValue: mock)
+
+        #if targetEnvironment(simulator)
+        // Always use mock in simulator
+        _tracker = StateObject(wrappedValue: HydrationTracker(dailyGoalMl: 1600, bleManager: mock))
+        isSimulatorMode = true
+        #else
+        // On device, use real BLE (can add debug toggle later)
+        _tracker = StateObject(wrappedValue: HydrationTracker(dailyGoalMl: 1600))
+        isSimulatorMode = false
+        #endif
+    }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
+                // Simulator controls (only in simulator mode)
+                if isSimulatorMode {
+                    SimulatorControlView(mockManager: mockBLE) {
+                        // When drink simulated, trigger a poll to pick it up
+                        tracker.pollOnce()
+                    }
+                    .padding(.horizontal)
+                }
                 // Halo ring progress indicator
                 HaloRingView(
                     progress: tracker.state.progress,

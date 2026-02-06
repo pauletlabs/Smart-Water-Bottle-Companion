@@ -7,16 +7,34 @@ class HydrationTracker: ObservableObject {
     @Published var isPolling: Bool = false
     @Published var connectionError: String?
 
-    private let bleManager: BLEManager
+    private var realBLEManager: BLEManager?
+    private var mockBLEManager: MockBLEManager?
     private var pollTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
 
-    init(dailyGoalMl: Int, mlPerGlass: Int = 200, bleManager: BLEManager? = nil) {
+    /// Initialize with real BLE manager (for device use)
+    init(dailyGoalMl: Int, mlPerGlass: Int = 200) {
         self.state = HydrationState(dailyGoalMl: dailyGoalMl, mlPerGlass: mlPerGlass)
-        self.bleManager = bleManager ?? BLEManager()
+        self.realBLEManager = BLEManager()
 
-        // Observe BLE errors - receive on main thread for @MainActor safety
-        self.bleManager.$lastError
+        // Observe BLE errors
+        self.realBLEManager?.$lastError
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] error in
+                Task { @MainActor in
+                    self?.connectionError = error
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    /// Initialize with mock BLE manager (for simulator/testing)
+    init(dailyGoalMl: Int, mlPerGlass: Int = 200, bleManager: MockBLEManager) {
+        self.state = HydrationState(dailyGoalMl: dailyGoalMl, mlPerGlass: mlPerGlass)
+        self.mockBLEManager = bleManager
+
+        // Observe mock BLE errors
+        bleManager.$lastError
             .receive(on: DispatchQueue.main)
             .sink { [weak self] error in
                 Task { @MainActor in
@@ -39,15 +57,23 @@ class HydrationTracker: ObservableObject {
         isPolling = false
         pollTimer?.invalidate()
         pollTimer = nil
-        bleManager.disconnect()
+        realBLEManager?.disconnect()
+        mockBLEManager?.disconnect()
     }
 
     func pollOnce() {
         connectionError = nil
-        bleManager.poll { [weak self] drinks in
+
+        let completion: ([DrinkEvent]) -> Void = { [weak self] drinks in
             Task { @MainActor in
                 self?.processNewDrinks(drinks)
             }
+        }
+
+        if let mock = mockBLEManager {
+            mock.poll(completion: completion)
+        } else {
+            realBLEManager?.poll(completion: completion)
         }
     }
 
