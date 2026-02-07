@@ -299,10 +299,16 @@ struct ContentView: View {
             .onReceive(bleScanner.$receivedDrinks) { drinks in
                 // Process drink events from the bottle
                 guard !drinks.isEmpty else { return }
-                print("📥 Received \(drinks.count) drinks from bottle!")
+                print("📥 ContentView received \(drinks.count) drinks from BLE!")
+                for drink in drinks {
+                    print("   🥤 \(drink.amountMl)ml at \(drink.month)/\(drink.day) \(drink.hour):\(drink.minute)")
+                }
 
                 // Add drinks to tracker
+                print("📤 Sending to tracker.processNewDrinks...")
                 tracker.processNewDrinks(drinks)
+                print("✅ tracker.state.todayTotalMl = \(tracker.state.todayTotalMl)")
+                print("✅ tracker.state.drinkHistory.count = \(tracker.state.drinkHistory.count)")
 
                 // Clear any active alert since we detected a drink
                 demoManager.stopDemo()

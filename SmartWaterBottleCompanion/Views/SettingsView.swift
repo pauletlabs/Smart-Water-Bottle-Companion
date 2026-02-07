@@ -110,7 +110,11 @@ struct SettingsView: View {
             dailyGoalMl: goalGlasses * state.mlPerGlass,
             mlPerGlass: state.mlPerGlass
         )
+        // Preserve existing data
         updatedState.todayTotalMl = state.todayTotalMl
+        updatedState.drinkHistory = state.drinkHistory
+        updatedState.lastDrinkTime = state.lastDrinkTime
+        // Apply new settings
         updatedState.wakeTime = DateComponents(hour: wakeHour, minute: wakeMinute)
         updatedState.sleepTime = DateComponents(hour: sleepHour, minute: sleepMinute)
         state = updatedState
