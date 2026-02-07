@@ -37,6 +37,11 @@ class PhoneSessionManager: NSObject, ObservableObject {
 
     /// Send hydration data to Watch
     func sendHydrationData(state: HydrationState, drinks: [DrinkEvent]) {
+        sendHydrationDataWithOverride(state: state, drinks: drinks, timeUntilNextDrink: nil)
+    }
+
+    /// Send hydration data to Watch with optional override for timeUntilNextDrink (for demo mode)
+    func sendHydrationDataWithOverride(state: HydrationState, drinks: [DrinkEvent], timeUntilNextDrink: TimeInterval?) {
         #if targetEnvironment(simulator)
         print("⌚ Watch sync skipped (simulator)")
         #else
@@ -45,7 +50,7 @@ class PhoneSessionManager: NSObject, ObservableObject {
             return
         }
 
-        let data = buildHydrationDataDictionary(state: state, drinks: drinks)
+        let data = buildHydrationDataDictionary(state: state, drinks: drinks, timeUntilNextDrinkOverride: timeUntilNextDrink)
         pendingHydrationData = data
 
         // Try multiple methods to ensure delivery
@@ -68,7 +73,7 @@ class PhoneSessionManager: NSObject, ObservableObject {
     }
 
     /// Build dictionary from HydrationState for WatchConnectivity
-    private func buildHydrationDataDictionary(state: HydrationState, drinks: [DrinkEvent]) -> [String: Any] {
+    private func buildHydrationDataDictionary(state: HydrationState, drinks: [DrinkEvent], timeUntilNextDrinkOverride: TimeInterval? = nil) -> [String: Any] {
         var data: [String: Any] = [
             "todayTotalMl": state.todayTotalMl,
             "dailyGoalMl": state.dailyGoalMl,
@@ -85,7 +90,10 @@ class PhoneSessionManager: NSObject, ObservableObject {
             data["lastDrinkTime"] = lastDrink
         }
 
-        if let timeUntil = state.timeUntilNextDrink(from: Date()) {
+        // Use override if provided (for demo mode), otherwise calculate from state
+        if let override = timeUntilNextDrinkOverride {
+            data["timeUntilNextDrink"] = override
+        } else if let timeUntil = state.timeUntilNextDrink(from: Date()) {
             data["timeUntilNextDrink"] = timeUntil
         }
 

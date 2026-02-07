@@ -320,6 +320,25 @@ struct ContentView: View {
                     bleScanner.reconnectToSavedBottle()
                 }
                 #endif
+
+                // Set up demo manager callback to sync to watch
+                demoManager.onStateChange = { [weak tracker, weak demoManager] in
+                    guard let tracker = tracker else { return }
+                    // Sync with demo countdown time if demo is active
+                    let timeUntilNext: TimeInterval?
+                    if let demo = demoManager, demo.demoSecondsLeft > 0 {
+                        timeUntilNext = TimeInterval(demo.demoSecondsLeft)
+                    } else if let demo = demoManager, demo.demoAlertSecondsLeft > 0 {
+                        timeUntilNext = 0  // Alert phase
+                    } else {
+                        timeUntilNext = tracker.state.timeUntilNextDrink(from: Date())
+                    }
+                    PhoneSessionManager.shared.sendHydrationDataWithOverride(
+                        state: tracker.state,
+                        drinks: tracker.todayDrinks,
+                        timeUntilNextDrink: timeUntilNext
+                    )
+                }
             }
         }
         } // RainbowBorderView

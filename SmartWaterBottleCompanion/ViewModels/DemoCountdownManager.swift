@@ -11,6 +11,9 @@ class DemoCountdownManager: ObservableObject {
 
     private var timer: Timer?
 
+    /// Callback to sync state to watch - set by ContentView
+    var onStateChange: (() -> Void)?
+
     /// Is demo mode active (either counting down or alerting)?
     var isDemoActive: Bool {
         demoSecondsLeft > 0 || demoAlertSecondsLeft > 0
@@ -43,6 +46,9 @@ class DemoCountdownManager: ObservableObject {
         demoSecondsLeft = 10
         demoAlertSecondsLeft = 0
 
+        // Sync to watch at start
+        onStateChange?()
+
         // Create timer and add to .common run loop mode
         // This ensures the timer fires even during scrolling/UI interactions
         let newTimer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
@@ -60,6 +66,9 @@ class DemoCountdownManager: ObservableObject {
         timer = nil
         demoSecondsLeft = 0
         demoAlertSecondsLeft = 0
+
+        // Sync to watch when stopped
+        onStateChange?()
     }
 
     /// Called every second by timer
@@ -69,6 +78,8 @@ class DemoCountdownManager: ObservableObject {
             // When countdown reaches 0, start 60-second alert
             if demoSecondsLeft == 0 {
                 demoAlertSecondsLeft = 60
+                // Sync to watch when alert phase starts
+                onStateChange?()
             }
         } else if demoAlertSecondsLeft > 0 {
             demoAlertSecondsLeft -= 1
@@ -76,6 +87,8 @@ class DemoCountdownManager: ObservableObject {
             if demoAlertSecondsLeft == 0 {
                 timer?.invalidate()
                 timer = nil
+                // Sync to watch when demo ends
+                onStateChange?()
             }
         }
     }
