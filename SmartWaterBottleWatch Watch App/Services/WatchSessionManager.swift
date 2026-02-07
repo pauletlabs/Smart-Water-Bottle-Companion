@@ -8,6 +8,7 @@
 import Foundation
 import Combine
 import WatchConnectivity
+import WatchKit
 
 @MainActor
 class WatchSessionManager: NSObject, ObservableObject {
@@ -40,12 +41,18 @@ class WatchSessionManager: NSObject, ObservableObject {
                 if let data = WatchHydrationData(from: response) {
                     self?.hydrationData = data
                     self?.lastSyncTime = Date()
+                    self?.playHaptic()
                     print("✅ Received hydration data from iPhone")
                 }
             }
         }, errorHandler: { error in
             print("❌ Failed to request data: \(error.localizedDescription)")
         })
+    }
+
+    /// Play haptic feedback when data updates
+    private func playHaptic() {
+        WKInterfaceDevice.current().play(.notification)
     }
 }
 
@@ -80,6 +87,7 @@ extension WatchSessionManager: WCSessionDelegate {
             if let data = WatchHydrationData(from: applicationContext) {
                 hydrationData = data
                 lastSyncTime = Date()
+                playHaptic()
                 print("📥 Received application context update")
             }
         }
@@ -91,6 +99,7 @@ extension WatchSessionManager: WCSessionDelegate {
             if let data = WatchHydrationData(from: message) {
                 hydrationData = data
                 lastSyncTime = Date()
+                playHaptic()
                 print("📥 Received direct message update")
             }
         }
@@ -102,6 +111,7 @@ extension WatchSessionManager: WCSessionDelegate {
             if let data = WatchHydrationData(from: userInfo) {
                 hydrationData = data
                 lastSyncTime = Date()
+                playHaptic()
                 print("📥 Received user info update")
             }
         }

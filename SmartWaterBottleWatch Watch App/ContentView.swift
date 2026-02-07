@@ -16,7 +16,7 @@ struct ContentView: View {
 
     /// Format the countdown timer
     private var countdownText: String {
-        if let timeUntil = sessionManager.hydrationData.timeUntilNextDrink {
+        if let timeUntil = sessionManager.hydrationData.currentTimeUntilNextDrink(from: currentTime) {
             let seconds = max(0, Int(timeUntil))
             let mins = seconds / 60
             let secs = seconds % 60
@@ -27,7 +27,7 @@ struct ContentView: View {
 
     /// Whether it's time to drink
     private var isAlerting: Bool {
-        if let timeUntil = sessionManager.hydrationData.timeUntilNextDrink {
+        if let timeUntil = sessionManager.hydrationData.currentTimeUntilNextDrink(from: currentTime) {
             return timeUntil <= 0
         }
         return false

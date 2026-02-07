@@ -28,6 +28,13 @@ struct WatchHydrationData: Codable {
         return min(Double(todayTotalMl) / Double(dailyGoalMl), 1.0)
     }
 
+    /// Current time until next drink, accounting for elapsed time since sync
+    func currentTimeUntilNextDrink(from now: Date = Date()) -> TimeInterval? {
+        guard let originalTime = timeUntilNextDrink else { return nil }
+        let elapsed = now.timeIntervalSince(timestamp)
+        return originalTime - elapsed
+    }
+
     /// Create from dictionary (for WatchConnectivity)
     init?(from dictionary: [String: Any]) {
         guard let todayTotalMl = dictionary["todayTotalMl"] as? Int,
