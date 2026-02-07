@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 struct ContentView: View {
     @StateObject private var tracker: HydrationTracker
@@ -13,8 +14,16 @@ struct ContentView: View {
     @StateObject private var demoManager = DemoCountdownManager()
     @StateObject private var bleScanner = BLEManager()  // For discovery scanning
     @State private var showSettings = false
-    @State private var showSimulator = false
     @State private var showBLEDiscovery = false
+
+    /// Current time - updated every second to refresh countdown display
+    @State private var currentTime = Date()
+
+    /// Timer to refresh the countdown display
+    let displayTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    /// Show simulator controls (ant menu) - persisted, defaults to ON
+    @AppStorage("showSimulatorControls") private var showSimulatorControls: Bool = true
 
     /// What to show on the countdown display
     private var displayCountdown: String {
@@ -22,15 +31,12 @@ struct ContentView: View {
             return String(format: "%02d:%02d", demoManager.demoSecondsLeft / 60, demoManager.demoSecondsLeft % 60)
         } else if demoManager.demoAlertSecondsLeft > 0 {
             return "00:00"
-        } else if let timeUntil = tracker.state.timeUntilNextDrink(from: Date()) {
-            let secs = Int(timeUntil)
+        } else if let timeUntil = tracker.state.timeUntilNextDrink(from: currentTime) {
+            let secs = max(0, Int(timeUntil))  // Don't show negative
             return String(format: "%02d:%02d", secs / 60, secs % 60)
         }
         return "00:00"
     }
-
-    /// Use simulator mode when running on iOS Simulator or when explicitly enabled
-    private let isSimulatorMode: Bool
 
     init() {
         let mock = MockBLEManager()
@@ -39,17 +45,15 @@ struct ContentView: View {
         #if targetEnvironment(simulator)
         // Always use mock in simulator
         _tracker = StateObject(wrappedValue: HydrationTracker(dailyGoalMl: 1600, bleManager: mock))
-        isSimulatorMode = true
         #else
-        // On device, use real BLE (can add debug toggle later)
+        // On device, use real BLE
         _tracker = StateObject(wrappedValue: HydrationTracker(dailyGoalMl: 1600))
-        isSimulatorMode = false
         #endif
     }
 
     /// Whether the alert state is active (time to drink!)
     private var isAlerting: Bool {
-        demoManager.isDemoAlerting || (tracker.state.timeUntilNextDrink(from: Date()) ?? 1) <= 0
+        demoManager.isDemoAlerting || (tracker.state.timeUntilNextDrink(from: currentTime) ?? 1) <= 0
     }
 
     var body: some View {
@@ -67,7 +71,7 @@ struct ContentView: View {
                 .padding(.top, 20)
 
                 // Countdown timer display
-                if demoManager.isDemoActive || tracker.state.timeUntilNextDrink(from: Date()) != nil {
+                if demoManager.isDemoActive || tracker.state.timeUntilNextDrink(from: currentTime) != nil {
                     VStack(spacing: 4) {
                         Text(displayCountdown)
                             .font(.system(size: 48, weight: .bold, design: .rounded))
@@ -115,17 +119,56 @@ struct ContentView: View {
 
                 Spacer()
 
-                // Connection status indicator
-                if tracker.isPolling {
-                    HStack(spacing: 8) {
+                // BLE Connection status indicator
+                HStack(spacing: 8) {
+                    switch bleScanner.connectionState {
+                    case .connected:
+                        Image(systemName: "drop.circle.fill")
+                            .foregroundColor(.green)
+                        Text("Connected to bottle")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                    case .connecting:
                         ProgressView()
                             .scaleEffect(0.8)
-                        Text("Connecting to bottle...")
+                        Text("Connecting...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    case .scanning:
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("Scanning...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    case .disconnected:
+                        if bleScanner.savedBottleIdentifier != nil {
+                            Image(systemName: "drop.circle")
+                                .foregroundColor(.secondary)
+                            Text("Bottle disconnected")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        } else {
+                            Image(systemName: "antenna.radiowaves.left.and.right.slash")
+                                .foregroundColor(.secondary)
+                            Text("No bottle paired")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    case .error(let message):
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                        Text(message)
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    case .polling:
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("Reading data...")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    .padding(.bottom, 8)
                 }
+                .padding(.bottom, 8)
 
                 // Error display
                 if let error = tracker.connectionError {
@@ -142,20 +185,18 @@ struct ContentView: View {
             }
             .navigationTitle("Hydration")
             .toolbar {
-                // Simulator controls in toolbar (simulator mode only)
-                if isSimulatorMode {
+                // Simulator controls in toolbar (controlled by Settings toggle)
+                if showSimulatorControls {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Menu {
                             Button {
-                                mockBLE.simulateDrink(amountMl: 200)
-                                tracker.pollOnce()
+                                tracker.addSimulatedDrink(amountMl: 200)
                                 demoManager.stopDemo()  // Clear alert on drink
                             } label: {
                                 Label("Add 200ml", systemImage: "drop.fill")
                             }
                             Button {
-                                mockBLE.simulateDrink(amountMl: 150)
-                                tracker.pollOnce()
+                                tracker.addSimulatedDrink(amountMl: 150)
                                 demoManager.stopDemo()  // Clear alert on drink
                             } label: {
                                 Label("Add 150ml", systemImage: "drop")
@@ -167,8 +208,7 @@ struct ContentView: View {
                             }
                             Divider()
                             Button(role: .destructive) {
-                                mockBLE.clearSimulatedDrinks()
-                                tracker.pollOnce()
+                                tracker.clearAllDrinks()
                             } label: {
                                 Label("Clear All", systemImage: "trash")
                             }
@@ -215,6 +255,28 @@ struct ContentView: View {
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                         .animation(.spring(response: 0.5), value: isAlerting)
                 }
+            }
+            .onReceive(displayTimer) { time in
+                currentTime = time
+            }
+            .onReceive(bleScanner.$receivedDrinks) { drinks in
+                // Process drink events from the bottle
+                guard !drinks.isEmpty else { return }
+                print("📥 Received \(drinks.count) drinks from bottle!")
+
+                // Add drinks to tracker
+                tracker.processNewDrinks(drinks)
+
+                // Clear any active alert since we detected a drink
+                demoManager.stopDemo()
+            }
+            .onAppear {
+                #if !targetEnvironment(simulator)
+                // Auto-connect to saved bottle on app launch
+                if bleScanner.savedBottleIdentifier != nil {
+                    bleScanner.reconnectToSavedBottle()
+                }
+                #endif
             }
         }
         } // RainbowBorderView

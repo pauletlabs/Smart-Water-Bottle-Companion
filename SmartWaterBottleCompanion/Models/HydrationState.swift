@@ -29,6 +29,9 @@ struct HydrationState {
         return dailyGoalMl / mlPerGlass
     }
 
+    /// Maximum interval between drinks (45 minutes)
+    static let maxIntervalSeconds: TimeInterval = 45 * 60
+
     func timeUntilNextDrink(from date: Date) -> TimeInterval? {
         let calendar = Calendar.current
         let hour = calendar.component(.hour, from: date)
@@ -48,17 +51,32 @@ struct HydrationState {
             return nil
         }
 
-        // Calculate remaining glasses needed
-        let glassesRemaining = glassesGoal - glassesConsumed
-        guard glassesRemaining > 0 else { return nil }
-
-        // Calculate remaining awake time in minutes
+        // Calculate ideal interval based on remaining glasses
+        let glassesRemaining = max(glassesGoal - glassesConsumed, 1)  // At least 1 to avoid division by zero
         let remainingAwakeMinutes = sleepMinutes - currentMinutes
         guard remainingAwakeMinutes > 0 else { return nil }
 
-        // Distribute remaining drinks evenly across remaining awake time
-        let intervalMinutes = Double(remainingAwakeMinutes) / Double(glassesRemaining)
+        // Ideal interval = remaining time / remaining glasses
+        let idealIntervalSeconds = (Double(remainingAwakeMinutes) / Double(glassesRemaining)) * 60.0
 
-        return intervalMinutes * 60.0  // Convert to seconds
+        // Cap at 45 minutes max
+        let cappedIntervalSeconds = min(idealIntervalSeconds, Self.maxIntervalSeconds)
+
+        // Calculate time since last drink (or since wake time if no drinks today)
+        let referenceTime: Date
+        if let lastDrink = lastDrinkTime {
+            referenceTime = lastDrink
+        } else {
+            // No drinks today - use wake time as reference
+            var wakeComponents = calendar.dateComponents([.year, .month, .day], from: date)
+            wakeComponents.hour = wakeHour
+            wakeComponents.minute = wakeMinute
+            referenceTime = calendar.date(from: wakeComponents) ?? date
+        }
+
+        let timeSinceReference = date.timeIntervalSince(referenceTime)
+        let timeRemaining = cappedIntervalSeconds - timeSinceReference
+
+        return timeRemaining  // Can be negative if overdue
     }
 }

@@ -108,11 +108,14 @@ final class DemoCountdownManagerTests: XCTestCase {
         let manager = DemoCountdownManager()
         manager.startDemo()
 
-        // Wait for countdown to finish (10 seconds + buffer)
-        try? await Task.sleep(nanoseconds: 11_000_000_000)  // 11 seconds
+        // Wait for countdown to finish (10 seconds + small buffer)
+        // Using 10.5s to ensure exactly 10 ticks (countdown reaches 0, alert starts at 60)
+        try? await Task.sleep(nanoseconds: 10_500_000_000)  // 10.5 seconds
 
-        XCTAssertEqual(manager.demoSecondsLeft, 0)
-        XCTAssertEqual(manager.demoAlertSecondsLeft, 60, "Should be in 60-second alert")
+        XCTAssertEqual(manager.demoSecondsLeft, 0, "Countdown should be at 0")
+        // Alert should be 60 (just started) or 59 (one tick into alert) depending on exact timing
+        XCTAssertGreaterThanOrEqual(manager.demoAlertSecondsLeft, 59, "Should be in alert phase")
+        XCTAssertLessThanOrEqual(manager.demoAlertSecondsLeft, 60, "Should have just started alert")
         XCTAssertTrue(manager.isDemoActive)
         XCTAssertTrue(manager.isDemoAlerting)
         XCTAssertEqual(manager.displayCountdown, "00:00")

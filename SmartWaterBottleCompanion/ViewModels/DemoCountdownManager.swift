@@ -43,12 +43,15 @@ class DemoCountdownManager: ObservableObject {
         demoSecondsLeft = 10
         demoAlertSecondsLeft = 0
 
-        // Start a fresh timer
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        // Create timer and add to .common run loop mode
+        // This ensures the timer fires even during scrolling/UI interactions
+        let newTimer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.tick()
             }
         }
+        RunLoop.main.add(newTimer, forMode: .common)
+        timer = newTimer
     }
 
     /// Stop demo and clear alert

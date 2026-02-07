@@ -10,7 +10,7 @@ import SwiftUI
 struct BLEDiscoveryView: View {
     @ObservedObject var bleManager: BLEManager
     @Environment(\.dismiss) private var dismiss
-    @State private var filterText: String = ""
+    @State private var filterText: String = "Water"
 
     /// Filtered list of devices based on search text
     private var filteredDevices: [DiscoveredDevice] {
@@ -129,6 +129,7 @@ struct BLEDiscoveryView: View {
                 // Action buttons
                 HStack(spacing: 16) {
                     Button {
+                        // Disconnect and rescan for new devices
                         bleManager.disconnect()
                         bleManager.startScanning()
                     } label: {
@@ -137,7 +138,8 @@ struct BLEDiscoveryView: View {
                     .buttonStyle(.bordered)
 
                     Button {
-                        bleManager.disconnect()
+                        // Just stop scanning - keep connection alive!
+                        bleManager.stopScanning()
                         dismiss()
                     } label: {
                         Label("Done", systemImage: "checkmark")
@@ -151,7 +153,8 @@ struct BLEDiscoveryView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Close") {
-                        bleManager.disconnect()
+                        // Just stop scanning - keep connection alive!
+                        bleManager.stopScanning()
                         dismiss()
                     }
                 }
