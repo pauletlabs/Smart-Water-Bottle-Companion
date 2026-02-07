@@ -30,9 +30,38 @@ Both can coexist - ESP32 could receive state from iPhone instead of connecting t
 
 - **Background polling** - Brief BLE connections so WaterH app can still be used
 - **Goal-based reminders** - User sets daily goal, app calculates intervals across waking hours
-- **Halo ring UI** - Fills with progress, pulses rainbow when time to drink
+- **Halo clock UI** - Ring represents active hours (wake→sleep), drinks shown as markers at time positions
 - **Watch-first design** - UI fits Apple Watch, expanded for iPhone
 - **Adaptive polling** - More frequent when timer is running low
+
+## Halo Clock Design
+
+The halo ring visualizes the day's hydration as a clock:
+
+```
+                    wake time (12 o'clock)
+                         │
+                    ╭────┴────╮
+                   /  ┃  │  ┃  \
+                  │   ┃ 7/8 ┃   │
+                  │   ┃ 💧  ┃   │   ← drink markers (│) at time positions
+                  │   ┃850ml┃   │
+                   \  ┃  │  ┃  /
+                    ╰──▲─░░░─╯
+                       │  ↑
+                      NOW target zone
+                         │
+                    sleep time
+```
+
+- **Ring spans wake→sleep** (e.g., 7am-9pm)
+- **12 o'clock = wake time** (start of active hours)
+- **Clockwise progression** through the day
+- **Pencil markers** show each drink at its time position
+- **Outer annotations** show ml amount and timestamp
+- **Red triangle** = current time position
+- **Orange zone** = target window for next drink
+- **Center** shows glass count and total ml
 
 ## BLE Protocol (Decoded)
 
@@ -96,6 +125,7 @@ Drink history packets typically start with 2 metadata bytes, followed by multipl
 - [x] **Auto-reconnect** - reconnects when bottle disconnects
 - [x] **Drink data parsing** - parses drink records from bottle notifications
 - [x] **Connection status UI** - shows connected/disconnected on main screen
+- [x] **Halo clock view** - ring shows active hours with drink markers at time positions
 - [ ] Task 9: watchOS target (manual Xcode step)
 - [ ] Task 10-13: Watch app + notifications
 - [ ] Task 14: Final integration

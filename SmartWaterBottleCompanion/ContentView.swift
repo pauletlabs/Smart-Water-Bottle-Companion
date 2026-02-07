@@ -56,32 +56,61 @@ struct ContentView: View {
         demoManager.isDemoAlerting || (tracker.state.timeUntilNextDrink(from: currentTime) ?? 1) <= 0
     }
 
+    /// Convert drink history to HaloDrink format for the ring view
+    private var haloDrinks: [HaloDrink] {
+        tracker.todayDrinks.compactMap { drink in
+            guard let timestamp = drink.timestamp else { return nil }
+            return HaloDrink(timestamp: timestamp, amountMl: Int(drink.amountMl))
+        }
+    }
+
     var body: some View {
         RainbowBorderView(isActive: isAlerting, borderWidth: 20) {
             NavigationStack {
                 VStack(spacing: 20) {
-                    // Halo ring progress indicator
+                    // Halo ring progress indicator (clock style)
                     HaloRingView(
                         progress: tracker.state.progress,
                         glassesConsumed: tracker.state.glassesConsumed,
                         glassesGoal: tracker.state.glassesGoal,
-                        isAlerting: isAlerting
+                        totalMl: tracker.state.todayTotalMl,
+                        isAlerting: isAlerting,
+                        drinks: haloDrinks,
+                        wakeTime: tracker.state.wakeTime,
+                        sleepTime: tracker.state.sleepTime,
+                        currentTime: currentTime,
+                        timeUntilNextDrink: tracker.state.timeUntilNextDrink(from: currentTime)
                     )
-                .frame(width: 200, height: 200)
-                .padding(.top, 20)
+                    .frame(width: 280, height: 280)
+                    .padding(.top, 10)
 
-                // Countdown timer display
+                // Totalizer (left) and Countdown (right)
                 if demoManager.isDemoActive || tracker.state.timeUntilNextDrink(from: currentTime) != nil {
-                    VStack(spacing: 4) {
-                        Text(displayCountdown)
-                            .font(.system(size: 48, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundColor(isAlerting ? .red : .primary)
+                    HStack {
+                        // Totalizer - left aligned
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(tracker.state.todayTotalMl)ml")
+                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .monospacedDigit()
+                            Text("total")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
 
-                        Text(demoManager.isDemoActive ? "DEMO MODE" : "until next drink")
-                            .font(.subheadline)
-                            .foregroundColor(demoManager.isDemoActive ? .orange : .secondary)
+                        Spacer()
+
+                        // Countdown - right aligned
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(displayCountdown)
+                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .monospacedDigit()
+                                .foregroundColor(isAlerting ? .red : .primary)
+                            Text(demoManager.isDemoActive ? "DEMO" : "next drink")
+                                .font(.caption)
+                                .foregroundColor(demoManager.isDemoActive ? .orange : .secondary)
+                        }
                     }
+                    .padding(.horizontal, 30)
                 } else {
                     Text("Outside drinking hours")
                         .font(.headline)
