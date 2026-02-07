@@ -25,8 +25,8 @@ struct SettingsView: View {
                 Section("Start Measuring From") {
                     HStack {
                         Picker("Hour", selection: $wakeHour) {
-                            ForEach(4...11, id: \.self) { hour in
-                                Text("\(hour):00").tag(hour)
+                            ForEach(0...23, id: \.self) { hour in
+                                Text(String(format: "%02d", hour)).tag(hour)
                             }
                         }
                         .pickerStyle(.wheel)
@@ -44,8 +44,8 @@ struct SettingsView: View {
                 Section("Target Complete Time") {
                     HStack {
                         Picker("Hour", selection: $sleepHour) {
-                            ForEach(12...21, id: \.self) { hour in
-                                Text("\(hour):00").tag(hour)
+                            ForEach(0...23, id: \.self) { hour in
+                                Text(String(format: "%02d", hour)).tag(hour)
                             }
                         }
                         .pickerStyle(.wheel)

@@ -22,7 +22,6 @@ struct HaloRingView: View {
     @State private var animateRainbow = false
 
     private let ringWidth: CGFloat = 24
-    private let annotationOffset: CGFloat = 45
 
     var body: some View {
         GeometryReader { geometry in
@@ -66,18 +65,6 @@ struct HaloRingView: View {
                     }
                 }
 
-                // Drink annotations (outer labels)
-                ForEach(drinks) { drink in
-                    if let angle = angleForTime(drink.timestamp) {
-                        DrinkAnnotation(
-                            angle: angle,
-                            radius: radius + annotationOffset,
-                            amountMl: drink.amountMl,
-                            timestamp: drink.timestamp
-                        )
-                    }
-                }
-
                 // Current time marker
                 CurrentTimeMarker(
                     angle: timeProgress * 360,
@@ -87,8 +74,8 @@ struct HaloRingView: View {
 
                 // Center content
                 VStack(spacing: 2) {
-                    Text("\(glassesConsumed)/\(glassesGoal)")
-                        .font(.system(size: size * 0.12, weight: .bold, design: .rounded))
+                    Text("\(glassesConsumed)/\(glassesGoal) cups")
+                        .font(.system(size: size * 0.10, weight: .bold, design: .rounded))
 
                     Image(systemName: "drop.fill")
                         .font(.system(size: size * 0.06))
@@ -206,38 +193,6 @@ struct DrinkMarker: View {
             .offset(y: -radius)
             .rotationEffect(.degrees(degrees))
             .shadow(color: .black.opacity(0.3), radius: 1, x: 0, y: 0)
-    }
-}
-
-// MARK: - Drink Annotation (outer label)
-
-struct DrinkAnnotation: View {
-    let angle: Double // 0-1 fraction
-    let radius: CGFloat
-    let amountMl: Int
-    let timestamp: Date
-
-    var body: some View {
-        let degrees = angle * 360 - 90
-        let radians = degrees * .pi / 180
-
-        let x = cos(radians) * radius
-        let y = sin(radians) * radius
-
-        VStack(spacing: 0) {
-            Text("\(amountMl)ml")
-                .font(.system(size: 8, weight: .medium))
-            Text(timeString)
-                .font(.system(size: 7))
-                .foregroundColor(.secondary)
-        }
-        .offset(x: x, y: y)
-    }
-
-    private var timeString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "H:mm"
-        return formatter.string(from: timestamp)
     }
 }
 
