@@ -4,11 +4,11 @@ struct SettingsView: View {
     @Binding var state: HydrationState
     @Environment(\.dismiss) private var dismiss
 
-    @State private var wakeHour: Int = 7
-    @State private var wakeMinute: Int = 0
-    @State private var sleepHour: Int = 21
+    @State private var wakeHour: Int = 6
+    @State private var wakeMinute: Int = 45
+    @State private var sleepHour: Int = 17
     @State private var sleepMinute: Int = 0
-    @State private var goalGlasses: Int = 8
+    @State private var goalGlasses: Int = 5
 
     /// Show simulator controls (ant menu) - persisted
     @AppStorage("showSimulatorControls") private var showSimulatorControls: Bool = true
@@ -22,11 +22,11 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Section("Wake Time") {
+                Section("Start Measuring From") {
                     HStack {
                         Picker("Hour", selection: $wakeHour) {
-                            ForEach(4...11, id: \.self) { hour in
-                                Text("\(hour):00").tag(hour)
+                            ForEach(0...23, id: \.self) { hour in
+                                Text(String(format: "%02d", hour)).tag(hour)
                             }
                         }
                         .pickerStyle(.wheel)
@@ -41,11 +41,11 @@ struct SettingsView: View {
                     .frame(height: 120)
                 }
 
-                Section("Sleep Time") {
+                Section("Target Complete Time") {
                     HStack {
                         Picker("Hour", selection: $sleepHour) {
-                            ForEach(18...23, id: \.self) { hour in
-                                Text("\(hour):00").tag(hour)
+                            ForEach(0...23, id: \.self) { hour in
+                                Text(String(format: "%02d", hour)).tag(hour)
                             }
                         }
                         .pickerStyle(.wheel)
@@ -58,6 +58,9 @@ struct SettingsView: View {
                         .pickerStyle(.wheel)
                     }
                     .frame(height: 120)
+                    Text("Aim to complete your goal by this time")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 Section("Developer") {
@@ -95,9 +98,9 @@ struct SettingsView: View {
     }
 
     private func loadSettings() {
-        wakeHour = state.wakeTime.hour ?? 7
-        wakeMinute = state.wakeTime.minute ?? 0
-        sleepHour = state.sleepTime.hour ?? 21
+        wakeHour = state.wakeTime.hour ?? 6
+        wakeMinute = state.wakeTime.minute ?? 45
+        sleepHour = state.sleepTime.hour ?? 17
         sleepMinute = state.sleepTime.minute ?? 0
         goalGlasses = state.glassesGoal
     }
@@ -107,7 +110,11 @@ struct SettingsView: View {
             dailyGoalMl: goalGlasses * state.mlPerGlass,
             mlPerGlass: state.mlPerGlass
         )
+        // Preserve existing data
         updatedState.todayTotalMl = state.todayTotalMl
+        updatedState.drinkHistory = state.drinkHistory
+        updatedState.lastDrinkTime = state.lastDrinkTime
+        // Apply new settings
         updatedState.wakeTime = DateComponents(hour: wakeHour, minute: wakeMinute)
         updatedState.sleepTime = DateComponents(hour: sleepHour, minute: sleepMinute)
         state = updatedState
@@ -115,5 +122,5 @@ struct SettingsView: View {
 }
 
 #Preview {
-    SettingsView(state: .constant(HydrationState(dailyGoalMl: 1600)))
+    SettingsView(state: .constant(HydrationState(dailyGoalMl: 1000)))
 }

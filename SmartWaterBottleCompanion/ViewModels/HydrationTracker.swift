@@ -83,15 +83,23 @@ class HydrationTracker: ObservableObject {
         let calendar = Calendar.current
         let today = Date()
 
+        print("🔄 processNewDrinks called with \(drinks.count) drinks")
+
         // Filter drinks to today only
         let todayDrinks = drinks.filter { drink in
-            guard let drinkDate = drink.timestamp else { return false }
-            return calendar.isDate(drinkDate, inSameDayAs: today)
+            guard let drinkDate = drink.timestamp else {
+                print("   ⚠️ Drink has no timestamp, skipping")
+                return false
+            }
+            let isToday = calendar.isDate(drinkDate, inSameDayAs: today)
+            print("   📅 Drink at \(drink.hour):\(drink.minute) - isToday: \(isToday)")
+            return isToday
         }
 
+        print("   📊 \(todayDrinks.count) drinks from today")
+
         // Add new drinks, avoiding duplicates
-        var newTotal = 0
-        var latestDrinkTime: Date?
+        var addedCount = 0
 
         for drink in todayDrinks {
             // Check for duplicate by comparing all fields except id
@@ -109,18 +117,26 @@ class HydrationTracker: ObservableObject {
 
             if !isDuplicate && !idExists {
                 state.drinkHistory.append(drink)
+                addedCount += 1
+                print("   ✅ Added drink: \(drink.amountMl)ml at \(drink.hour):\(drink.minute)")
             }
         }
 
         // Recalculate total from all drinks in history
-        newTotal = state.drinkHistory.reduce(0) { $0 + Int($1.amountMl) }
+        let newTotal = state.drinkHistory.reduce(0) { $0 + Int($1.amountMl) }
         state.todayTotalMl = newTotal
 
         // Update last drink time to the latest in history
-        latestDrinkTime = state.drinkHistory
+        let latestDrinkTime = state.drinkHistory
             .compactMap { $0.timestamp }
             .max()
         state.lastDrinkTime = latestDrinkTime
+
+        print("   📈 State updated: \(addedCount) new drinks, total \(newTotal)ml, \(state.drinkHistory.count) in history")
+
+        // Force SwiftUI to notice the change by reassigning state
+        // (struct mutation should trigger @Published, but let's be explicit)
+        objectWillChange.send()
     }
 
     // MARK: - Adaptive Poll Interval
