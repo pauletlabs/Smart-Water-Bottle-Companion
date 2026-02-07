@@ -34,6 +34,9 @@ class BLEManager: NSObject, ObservableObject {
     /// Published when drink events are parsed from bottle data
     @Published var receivedDrinks: [DrinkEvent] = []
 
+    /// Battery level percentage (0-100), nil if unknown
+    @Published var batteryLevel: Int?
+
     /// Enable to scan for ALL devices (discovery mode)
     var discoveryMode: Bool = true
 
@@ -520,6 +523,15 @@ extension BLEManager: CBPeripheralDelegate {
                     }
                 case "RT":
                     // Real-time status packet - bottle sends these automatically
+                    // Format: RT + 6 bytes of status data
+                    // Byte 7 (index 7) appears to be battery percentage
+                    if data.count >= 8 {
+                        let battery = Int(data[7])
+                        if battery >= 0 && battery <= 100 {
+                            batteryLevel = battery
+                            bleLog.info("   🔋 Battery: \(battery)%")
+                        }
+                    }
                     bleLog.info("   📊 Real-time status packet")
                 case "RP":
                     // Response/acknowledgment packet

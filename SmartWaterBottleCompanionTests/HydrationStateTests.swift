@@ -40,14 +40,27 @@ final class HydrationStateTests: XCTestCase {
         // With 45 min cap and 20 min elapsed, should have ~25 min remaining
     }
 
-    func testNoReminderDuringSleep() {
-        var state = HydrationState(dailyGoalMl: 1600)
-        state.wakeTime = DateComponents(hour: 8, minute: 0)
-        state.sleepTime = DateComponents(hour: 20, minute: 0)
+    func testNoReminderBeforeStartTime() {
+        var state = HydrationState(dailyGoalMl: 1000)
+        state.wakeTime = DateComponents(hour: 6, minute: 45)
+        state.sleepTime = DateComponents(hour: 17, minute: 0)
 
-        let interval = state.timeUntilNextDrink(from: makeDate(hour: 22, minute: 0))
+        // Before start time should return nil
+        let interval = state.timeUntilNextDrink(from: makeDate(hour: 5, minute: 0))
 
         XCTAssertNil(interval)
+    }
+
+    func testContinuesAfterTargetTime() {
+        var state = HydrationState(dailyGoalMl: 1000)
+        state.wakeTime = DateComponents(hour: 6, minute: 45)
+        state.sleepTime = DateComponents(hour: 17, minute: 0)
+        state.lastDrinkTime = makeDate(hour: 18, minute: 0)
+
+        // After target time should still return a value (continues tracking)
+        let interval = state.timeUntilNextDrink(from: makeDate(hour: 18, minute: 30))
+
+        XCTAssertNotNil(interval)
     }
 
     private func makeDate(hour: Int, minute: Int) -> Date {

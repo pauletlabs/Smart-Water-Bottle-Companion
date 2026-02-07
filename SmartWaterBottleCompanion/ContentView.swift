@@ -44,10 +44,10 @@ struct ContentView: View {
 
         #if targetEnvironment(simulator)
         // Always use mock in simulator
-        _tracker = StateObject(wrappedValue: HydrationTracker(dailyGoalMl: 1600, bleManager: mock))
+        _tracker = StateObject(wrappedValue: HydrationTracker(dailyGoalMl: 1000, bleManager: mock))
         #else
         // On device, use real BLE
-        _tracker = StateObject(wrappedValue: HydrationTracker(dailyGoalMl: 1600))
+        _tracker = StateObject(wrappedValue: HydrationTracker(dailyGoalMl: 1000))
         #endif
     }
 
@@ -112,7 +112,7 @@ struct ContentView: View {
                     }
                     .padding(.horizontal, 30)
                 } else {
-                    Text("Outside drinking hours")
+                    Text("Before start time")
                         .font(.headline)
                         .foregroundColor(.secondary)
                         .padding()
@@ -154,9 +154,17 @@ struct ContentView: View {
                     case .connected:
                         Image(systemName: "drop.circle.fill")
                             .foregroundColor(.green)
-                        Text("Connected to bottle")
+                        Text("Connected")
                             .font(.caption)
                             .foregroundColor(.green)
+                        if let battery = bleScanner.batteryLevel {
+                            Spacer()
+                            Image(systemName: batteryIcon(for: battery))
+                                .foregroundColor(batteryColor(for: battery))
+                            Text("\(battery)%")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     case .connecting:
                         ProgressView()
                             .scaleEffect(0.8)
@@ -346,6 +354,33 @@ struct DrinkRowView: View {
             return formatter.string(from: timestamp)
         }
         return String(format: "%02d:%02d", drink.hour, drink.minute)
+    }
+}
+
+// MARK: - Battery Helpers
+extension ContentView {
+    func batteryIcon(for level: Int) -> String {
+        switch level {
+        case 0..<25:
+            return "battery.25percent"
+        case 25..<50:
+            return "battery.50percent"
+        case 50..<75:
+            return "battery.75percent"
+        default:
+            return "battery.100percent"
+        }
+    }
+
+    func batteryColor(for level: Int) -> Color {
+        switch level {
+        case 0..<20:
+            return .red
+        case 20..<40:
+            return .orange
+        default:
+            return .green
+        }
     }
 }
 

@@ -4,8 +4,10 @@ struct HydrationState {
     let dailyGoalMl: Int
     var todayTotalMl: Int = 0
     let mlPerGlass: Int
-    var wakeTime: DateComponents = DateComponents(hour: 7, minute: 0)
-    var sleepTime: DateComponents = DateComponents(hour: 21, minute: 0)
+    /// Start measuring from this time (previously "wake time")
+    var wakeTime: DateComponents = DateComponents(hour: 6, minute: 45)
+    /// Target complete time - aim to finish goal by this time (previously "sleep time")
+    var sleepTime: DateComponents = DateComponents(hour: 17, minute: 0)
     var drinkHistory: [DrinkEvent] = []
     var lastDrinkTime: Date?
 
@@ -37,23 +39,33 @@ struct HydrationState {
         let hour = calendar.component(.hour, from: date)
         let minute = calendar.component(.minute, from: date)
 
-        let wakeHour = wakeTime.hour ?? 7
-        let wakeMinute = wakeTime.minute ?? 0
-        let sleepHour = sleepTime.hour ?? 21
+        let wakeHour = wakeTime.hour ?? 6
+        let wakeMinute = wakeTime.minute ?? 45
+        let sleepHour = sleepTime.hour ?? 17
         let sleepMinute = sleepTime.minute ?? 0
 
         let currentMinutes = hour * 60 + minute
         let wakeMinutes = wakeHour * 60 + wakeMinute
         let sleepMinutes = sleepHour * 60 + sleepMinute
 
-        // During sleep hours, return nil
-        if currentMinutes < wakeMinutes || currentMinutes >= sleepMinutes {
+        // Before start time, return nil (not tracking yet)
+        if currentMinutes < wakeMinutes {
             return nil
+        }
+
+        // After target time, continue tracking but use 45-min intervals
+        // (goal should be complete but we still show countdown)
+        let effectiveEndMinutes: Int
+        if currentMinutes >= sleepMinutes {
+            // Past target time - use end of day as effective end
+            effectiveEndMinutes = 24 * 60
+        } else {
+            effectiveEndMinutes = sleepMinutes
         }
 
         // Calculate ideal interval based on remaining glasses
         let glassesRemaining = max(glassesGoal - glassesConsumed, 1)  // At least 1 to avoid division by zero
-        let remainingAwakeMinutes = sleepMinutes - currentMinutes
+        let remainingAwakeMinutes = effectiveEndMinutes - currentMinutes
         guard remainingAwakeMinutes > 0 else { return nil }
 
         // Ideal interval = remaining time / remaining glasses
