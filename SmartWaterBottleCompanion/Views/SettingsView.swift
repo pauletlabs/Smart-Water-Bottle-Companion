@@ -118,6 +118,12 @@ struct SettingsView: View {
         updatedState.wakeTime = DateComponents(hour: wakeHour, minute: wakeMinute)
         updatedState.sleepTime = DateComponents(hour: sleepHour, minute: sleepMinute)
         state = updatedState
+
+        // Sync updated settings to Apple Watch
+        let drinks = state.drinkHistory.compactMap { drink -> DrinkEvent? in
+            return drink
+        }
+        PhoneSessionManager.shared.sendHydrationData(state: updatedState, drinks: drinks)
     }
 }
 

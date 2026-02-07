@@ -137,6 +137,16 @@ class HydrationTracker: ObservableObject {
         // Force SwiftUI to notice the change by reassigning state
         // (struct mutation should trigger @Published, but let's be explicit)
         objectWillChange.send()
+
+        // Sync to Apple Watch
+        syncToWatch()
+    }
+
+    // MARK: - Watch Sync
+
+    /// Send current state to Apple Watch
+    func syncToWatch() {
+        PhoneSessionManager.shared.sendHydrationData(state: state, drinks: todayDrinks)
     }
 
     // MARK: - Adaptive Poll Interval
@@ -186,6 +196,7 @@ class HydrationTracker: ObservableObject {
         state.drinkHistory.append(drink)
         state.todayTotalMl += amountMl
         state.lastDrinkTime = now
+        syncToWatch()
     }
 
     /// Clear all simulated/recorded drinks (for testing)
@@ -193,6 +204,7 @@ class HydrationTracker: ObservableObject {
         state.drinkHistory = []
         state.todayTotalMl = 0
         state.lastDrinkTime = nil
+        syncToWatch()
     }
 
     // MARK: - Reset
@@ -201,6 +213,7 @@ class HydrationTracker: ObservableObject {
         state.todayTotalMl = 0
         state.drinkHistory = []
         state.lastDrinkTime = nil
+        syncToWatch()
     }
 
     // MARK: - Private
