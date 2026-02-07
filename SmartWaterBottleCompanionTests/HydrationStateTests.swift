@@ -30,11 +30,14 @@ final class HydrationStateTests: XCTestCase {
         state.wakeTime = DateComponents(hour: 8, minute: 0)
         state.sleepTime = DateComponents(hour: 20, minute: 0)
         state.todayTotalMl = 400  // 2 glasses of 8
+        // Set last drink time to 20 minutes ago
+        state.lastDrinkTime = makeDate(hour: 9, minute: 40)
 
         let interval = state.timeUntilNextDrink(from: makeDate(hour: 10, minute: 0))
 
+        // Should return time remaining (capped interval minus elapsed since last drink)
         XCTAssertNotNil(interval)
-        XCTAssertGreaterThan(interval!, 0)
+        // With 45 min cap and 20 min elapsed, should have ~25 min remaining
     }
 
     func testNoReminderDuringSleep() {

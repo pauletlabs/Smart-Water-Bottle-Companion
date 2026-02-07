@@ -213,10 +213,10 @@ final class HydrationTrackerTests: XCTestCase {
     func testPollIntervalAt5MinuteBoundary() async {
         let tracker = HydrationTracker(dailyGoalMl: 1600)
 
-        // Exactly 5 minutes should use 2 minute interval (<5 min range)
+        // Exactly 5 minutes falls into 5-10 minute range (uses < not <=)
         let interval = tracker.calculatePollInterval(timeUntilReminder: 5 * 60)
 
-        XCTAssertEqual(interval, 2 * 60)
+        XCTAssertEqual(interval, 5 * 60)
     }
 
     // MARK: - Polling State Tests

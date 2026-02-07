@@ -30,27 +30,75 @@ Both can coexist - ESP32 could receive state from iPhone instead of connecting t
 
 - **Background polling** - Brief BLE connections so WaterH app can still be used
 - **Goal-based reminders** - User sets daily goal, app calculates intervals across waking hours
-- **Halo ring UI** - Fills with progress, pulses rainbow when time to drink
+- **Halo clock UI** - Ring represents active hours (wake→sleep), drinks shown as markers at time positions
 - **Watch-first design** - UI fits Apple Watch, expanded for iPhone
 - **Adaptive polling** - More frequent when timer is running low
 
+## Halo Clock Design
+
+The halo ring visualizes the day's hydration as a clock:
+
+```
+                    wake time (12 o'clock)
+                         │
+                    ╭────┴────╮
+                   /  ┃  │  ┃  \
+                  │   ┃ 7/8 ┃   │
+                  │   ┃ 💧  ┃   │   ← drink markers (│) at time positions
+                  │   ┃850ml┃   │
+                   \  ┃  │  ┃  /
+                    ╰──▲─░░░─╯
+                       │  ↑
+                      NOW target zone
+                         │
+                    sleep time
+```
+
+- **Ring spans wake→sleep** (e.g., 7am-9pm)
+- **12 o'clock = wake time** (start of active hours)
+- **Clockwise progression** through the day
+- **Pencil markers** show each drink at its time position
+- **Outer annotations** show ml amount and timestamp
+- **Red triangle** = current time position
+- **Orange zone** = target window for next drink
+- **Center** shows glass count and total ml
+
 ## BLE Protocol (Decoded)
 
+### Connection
 - **Single connection only** - Bottle supports one BLE connection at a time
-- **Command**: Write `01` to characteristic #1 to request drink history
-- **Response**: Read from characteristic #2, `PT` header = drink data
+- **Services discovered:**
+  - `0000FFE0-0000-1000-8000-00805F9B34FB` - Response service (FFE4 characteristic: Read, Notify)
+  - `0000FFE5-0000-1000-8000-00805F9B34FB` - Command service (FFE9 characteristic: WriteNoResp)
+  - `00010203-0405-0607-0809-0A0B0C0D1912` - Unknown service
+
+### Data Flow
+- **Subscribe to notifications** on FFE4 - bottle sends data automatically
+- **Packet types:**
+  - `RT` (0x52 0x54) - Real-time status, sent periodically
+  - `RP` (0x52 0x50) - Response/acknowledgment
+  - `PT` (0x50 0x54) - Drink history (original format)
+  - Other packets contain drink records starting with metadata bytes
 
 ### Drink Record Format (13 bytes)
 ```
-Byte 0: Record type (0x1A = drink)
-Byte 1: Month
-Byte 2: Day
-Byte 3: Hour (24h)
-Byte 4: Minute
-Byte 5: Second
-Byte 6: Separator (0x00)
-Byte 7: Amount in ml
-Bytes 8-12: Flags/checksum (TBD)
+Example: 1A 02 07 0E 2E 20 00 11 00 00 01 47 00
+         ^^ ^^ ^^ ^^ ^^ ^^ ^^ ^^ ^^^^^^^^^^^
+         |  |  |  |  |  |  |  |  └─ Flags/checksum
+         |  |  |  |  |  |  |  └──── Amount: 17ml (0x11)
+         |  |  |  |  |  |  └─────── Separator (0x00)
+         |  |  |  |  |  └────────── Second: 32 (0x20)
+         |  |  |  |  └───────────── Minute: 46 (0x2E)
+         |  |  |  └──────────────── Hour: 14 (0x0E = 2PM)
+         |  |  └─────────────────── Day: 7 (0x07)
+         |  └────────────────────── Month: 2 (February)
+         └───────────────────────── Record type: 0x1A = drink event
+```
+
+### Packet Structure
+Drink history packets typically start with 2 metadata bytes, followed by multiple 13-byte drink records:
+```
+[len] [meta] [drink1: 13 bytes] [drink2: 13 bytes] ...
 ```
 
 ## Project Status
@@ -60,7 +108,7 @@ Bytes 8-12: Flags/checksum (TBD)
 
 **Implementation plan:** `docs/plans/2026-02-03-ios-watchos-app-implementation.md`
 
-**Progress (updated 2026-02-06):**
+**Progress (updated 2026-02-07 morning):**
 - [x] Task 1: DrinkEvent model (committed, tests pass)
 - [x] Task 2: HydrationState model (committed, tests pass)
 - [x] Task 3: BLE Manager (committed)
@@ -69,28 +117,39 @@ Bytes 8-12: Flags/checksum (TBD)
 - [x] Task 6: ContentView - full UI (committed)
 - [x] Task 7: SettingsView (committed)
 - [x] Task 8: Info.plist removed (using Xcode build settings)
+- [x] BLE Simulator for testing (committed)
+- [x] Demo mode with 10s countdown + 60s alert (committed)
+- [x] Rainbow border glow + alert banner UI (committed)
+- [x] **Real countdown timer** - counts down from last drink, 45min max cap
+- [x] **BLE connection persistence** - stays connected when leaving discovery
+- [x] **Auto-reconnect** - reconnects when bottle disconnects
+- [x] **Drink data parsing** - parses drink records from bottle notifications
+- [x] **Connection status UI** - shows connected/disconnected on main screen
+- [x] **Halo clock view** - ring shows active hours with drink markers at time positions
 - [ ] Task 9: watchOS target (manual Xcode step)
 - [ ] Task 10-13: Watch app + notifications
 - [ ] Task 14: Final integration
 
 **Branch:** `feature/ios-app-core-implementation` (PR #1 open)
 
-**Current TODO:**
-1. BLE Simulator for end-to-end testing without physical bottle
+**Current TODO (next session):**
+1. Test demo countdown fix - user reported timer getting stuck, refactored to DemoCountdownManager
 2. Fix HydrationTrackerTests Swift 6 concurrency issue
 3. watchOS target and app
 4. Notifications
 
-### Phase 2.5: BLE Simulator - IN PROGRESS
+### Phase 2.5: BLE Simulator - COMPLETE
 
 **Goal:** Enable end-to-end testing of the app without the physical water bottle.
 
 **Components:**
-- `MockBLEManager` - Implements same interface as BLEManager but generates fake drink events
-- `SimulatorControlView` - Debug UI to trigger simulated drinks
-- Compiler flag to swap real/mock BLE in Debug builds
+- `MockBLEManager` - Simulates drink events for testing
+- Simulator controls in toolbar (ant icon 🐜) - Add 200ml, Add 150ml, 10s Demo, Clear All
+- `DemoCountdownManager` - Manages 10s countdown + 60s alert phase independently of view lifecycle
+- `RainbowBorderView` - Siri-style animated border glow when alerting (20px)
+- `AlertBannerView` - "Time to Drink!" banner with bouncing drop and pulsing bell
 
-**Usage:** In simulator or when bottle unavailable, tap "Simulate Drink" to test the full flow.
+**Usage:** In simulator, tap the ant icon (🐜) menu to add drinks or trigger the demo.
 
 ### Phase 3: Testing & Refinement
 ### Phase 4: ESP32 Desk Display (Chapter 2)
@@ -108,11 +167,20 @@ Bytes 8-12: Flags/checksum (TBD)
 - `SmartWaterBottleCompanion/Models/HydrationState.swift` - Daily hydration tracking state
 - `SmartWaterBottleCompanion/Services/BLEConstants.swift` - Bluetooth UUIDs
 - `SmartWaterBottleCompanion/Services/BLEManager.swift` - CoreBluetooth integration
+- `SmartWaterBottleCompanion/Services/MockBLEManager.swift` - Mock BLE for simulator testing
+- `SmartWaterBottleCompanion/ViewModels/HydrationTracker.swift` - Main state coordinator
+- `SmartWaterBottleCompanion/ViewModels/DemoCountdownManager.swift` - Demo mode timer logic
 - `SmartWaterBottleCompanion/Views/HaloRingView.swift` - Circular progress ring UI
+- `SmartWaterBottleCompanion/Views/RainbowBorderView.swift` - Animated glow border
+- `SmartWaterBottleCompanion/Views/AlertBannerView.swift` - "Time to Drink!" banner
+- `SmartWaterBottleCompanion/Views/SettingsView.swift` - Settings screen
+- `SmartWaterBottleCompanion/ContentView.swift` - Main app UI
 
 ### Test Files
 - `SmartWaterBottleCompanionTests/DrinkEventTests.swift`
 - `SmartWaterBottleCompanionTests/HydrationStateTests.swift`
+- `SmartWaterBottleCompanionTests/DemoCountdownTests.swift` - Demo logic tests (all pass)
+- `SmartWaterBottleCompanionTests/DemoCountdownManagerTests.swift` - Manager tests
 
 ## Tech Stack
 

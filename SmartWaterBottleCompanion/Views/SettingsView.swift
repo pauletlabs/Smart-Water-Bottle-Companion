@@ -10,6 +10,9 @@ struct SettingsView: View {
     @State private var sleepMinute: Int = 0
     @State private var goalGlasses: Int = 8
 
+    /// Show simulator controls (ant menu) - persisted
+    @AppStorage("showSimulatorControls") private var showSimulatorControls: Bool = true
+
     var body: some View {
         NavigationStack {
             Form {
@@ -55,6 +58,13 @@ struct SettingsView: View {
                         .pickerStyle(.wheel)
                     }
                     .frame(height: 120)
+                }
+
+                Section("Developer") {
+                    Toggle("Show Simulator Controls", isOn: $showSimulatorControls)
+                    Text("Shows the 🐜 menu for testing demos and adding simulated drinks")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 Section("About") {

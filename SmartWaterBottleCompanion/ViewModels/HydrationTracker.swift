@@ -150,6 +150,35 @@ class HydrationTracker: ObservableObject {
         }
     }
 
+    // MARK: - Simulated Drinks (for testing/demo)
+
+    /// Add a simulated drink directly (bypasses BLE)
+    func addSimulatedDrink(amountMl: Int) {
+        let now = Date()
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.month, .day, .hour, .minute, .second], from: now)
+
+        let drink = DrinkEvent(
+            month: UInt8(components.month ?? 1),
+            day: UInt8(components.day ?? 1),
+            hour: UInt8(components.hour ?? 0),
+            minute: UInt8(components.minute ?? 0),
+            second: UInt8(components.second ?? 0),
+            amountMl: UInt8(min(amountMl, 255))
+        )
+
+        state.drinkHistory.append(drink)
+        state.todayTotalMl += amountMl
+        state.lastDrinkTime = now
+    }
+
+    /// Clear all simulated/recorded drinks (for testing)
+    func clearAllDrinks() {
+        state.drinkHistory = []
+        state.todayTotalMl = 0
+        state.lastDrinkTime = nil
+    }
+
     // MARK: - Reset
 
     func resetForNewDay() {
